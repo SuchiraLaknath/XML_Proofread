@@ -1,0 +1,52 @@
+CLAUDE.md
+
+# Secrets (API keys) - never commit
+.env
+.env.*
+!.env.example
+
+# Assignment originals (tracked copies live in examples/)
+docs/assigment_files/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python bytecode and build output
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Test, coverage and type-checker caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter (ipykernel is a dependency)
+.ipynb_checkpoints/
+
+# Program output (written next to the input file)
+*.corrected.xml
+# ...except the sample output kept for reviewers (a real gpt-4.1 run on examples/sample_input.xml)
+!examples/sample_input.corrected.xml
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+temp_docs/
+CLAUDE.md
