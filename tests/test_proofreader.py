@@ -57,7 +57,7 @@ def without_error_tags(xml: bytes) -> bytes:
     return etree.tostring(root)
 
 
-# ---------- the assignment's example ----------
+# ---------- examples/example_input.xml -> examples/example_output.xml ----------
 
 EXAMPLE_ANSWERS = {
     "The committe has decided": [
