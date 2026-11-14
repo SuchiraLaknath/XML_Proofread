@@ -28,44 +28,71 @@ flowchart TB
 
     subgraph PP["proof_read_process/ — the proofreading flow"]
         direction LR
-        language["language.py"]
-        rule_loader["rule_loader.py"]
-        prompts["prompts.py"]
-        pipeline["pipeline.py"]
-        xml_reader["xml_reader.py"]
-        ai_proofreader["ai_proofreader.py"]
-        error_marker["error_marker.py"]
-        safety_check["safety_check.py"]
-        report["report.py"]
+        subgraph PP_IN["inputs"]
+            direction TB
+            language["language.py<br/>check --lang"]
+            rule_loader["rule_loader.py<br/>style guide → Markdown"]
+            prompts["prompts.py<br/>fill the templates"]
+        end
+        subgraph PP_RUN["run"]
+            direction TB
+            pipeline["pipeline.py<br/>proofread_file()"]
+            xml_reader["xml_reader.py<br/>find p elements, read text"]
+            ai_proofreader["ai_proofreader.py<br/>ask the AI, read JSON"]
+        end
+        subgraph PP_OUT["mark and report"]
+            direction TB
+            error_marker["error_marker.py<br/>insert error tags"]
+            safety_check["safety_check.py<br/>text unchanged?"]
+            report["report.py<br/>summary"]
+        end
     end
 
     subgraph LLM["llms/ — AI clients (know nothing about proofreading)"]
         direction LR
-        providers["providers.py"]
-        llm_invoke["llm_invoke.py"]
-        base_llm["base_llm.py"]
-        openai_llm["openai_llm.py"]
-        anthropic_llm["anthropic_llm.py"]
-        rate_limit["rate_limit.py"]
+        subgraph LLM_API["used by the flow"]
+            direction TB
+            providers["providers.py<br/>create_llm()"]
+            llm_invoke["llm_invoke.py<br/>parallel calls, re-asks"]
+        end
+        subgraph LLM_CLIENTS["clients"]
+            direction TB
+            openai_llm["openai_llm.py"]
+            anthropic_llm["anthropic_llm.py"]
+        end
+        subgraph LLM_CORE["shared"]
+            direction TB
+            base_llm["base_llm.py<br/>ChatLLM.ask()"]
+            rate_limit["rate_limit.py<br/>wait on 429"]
+        end
     end
 
     subgraph UT["utils/ — small shared helpers"]
         direction LR
-        rw_xml["read_write_xml.py"]
-        rw_docx["read_docx.py"]
-        env["environmental_variables.py"]
-        prompt_tools["prompt_making_tools.py"]
-        logging_setup["logging_setup.py"]
+        subgraph UT_FILES["files"]
+            direction TB
+            rw_xml["read_write_xml.py"]
+            rw_docx["read_docx.py"]
+            rw_md["read_write_md.py"]
+            rw_file["read_write_file.py"]
+        end
+        subgraph UT_OTHER["settings, prompts, logging"]
+            direction TB
+            env["environmental_variables.py"]
+            prompt_tools["prompt_making_tools.py"]
+            logging_setup["logging_setup.py"]
+        end
     end
 
     templates[("prompt_templates/<br/>xml_proofread/*.md")]
 
-    CLI --> PP
-    CLI --> LLM
-    PP --> LLM
-    PP --> UT
-    LLM --> UT
-    prompts -.reads.-> templates
+    CLI -->|"parse_language, load_style_guide,<br/>proofread_file, print_summary"| PP
+    CLI -->|"create_llm"| LLM
+    CLI -->|"setup_logging"| UT
+    PP -->|"invoke_llm_parallel"| LLM
+    PP -->|"XML, .docx and template files"| UT
+    LLM -->|".env settings"| UT
+    UT -.->|"reads"| templates
 ```
 
 | Layer | Job | Rule |
