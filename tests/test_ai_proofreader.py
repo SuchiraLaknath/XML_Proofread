@@ -116,12 +116,6 @@ def test_check_all_returns_results_by_paragraph_text() -> None:
     assert any("<paragraph>\nI am john.\n</paragraph>" in prompt for prompt in llm.user_prompts)
 
 
-def test_check_all_adds_style_hints_to_the_prompt() -> None:
-    llm = FakeLLM()
-    Proofreader(llm, load_proofread_prompts(), "SYSTEM").check_all(["The judgement stands."])  # type: ignore[arg-type]
-    assert '- "judgement": the style guide uses "judgment"' in llm.user_prompts[0]
-
-
 # ---------- parse_language ----------
 
 

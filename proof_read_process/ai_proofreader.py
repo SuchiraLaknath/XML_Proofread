@@ -11,8 +11,7 @@ and skips single bad items. It raises ValueError only when the whole answer is
 unusable, which makes llms.invoke_llm ask the AI again.
 
 Proofreader.check_all() sends every unique paragraph text to the AI once, in
-parallel, with style hints from style_rules.find_hints(). main.py builds the
-Proofreader; tests use a fake one instead.
+parallel. main.py builds the Proofreader; tests use a fake one instead.
 """
 
 import json
@@ -24,7 +23,6 @@ from typing import Any, Protocol
 from llms import ChatLLM, InvokeResult, invoke_llm_parallel
 
 from .prompts import ProofreadPrompts, build_user_prompt
-from .style_rules import find_hints
 
 logger = logging.getLogger(__name__)
 
@@ -81,11 +79,8 @@ class Proofreader:
         self.system_prompt = system_prompt
 
     def check_all(self, texts: list[str], workers: int | None = None) -> dict[str, CheckResult]:
-        """Check every unique text once, in parallel. Returns {text: result}.
-
-        Each prompt carries the style hints found in its text (they depend only on the text).
-        """
-        prompt_to_text = {build_user_prompt(self.prompts, text, find_hints(text)): text for text in texts}
+        """Check every unique text once, in parallel. Returns {text: result}."""
+        prompt_to_text = {build_user_prompt(self.prompts, text): text for text in texts}
         results = invoke_llm_parallel(
             self.llm, self.system_prompt, list(prompt_to_text), parse=parse_ai_answer, workers=workers
         )

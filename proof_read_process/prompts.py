@@ -2,7 +2,7 @@
 
 The templates live in prompt_templates/xml_proofread/ and use string.Template
 placeholders: $language, $lang and $style_guide in the system prompt, and
-$paragraph and $hints in the user prompt.
+$paragraph in the user prompt.
 
 Each template is read from disk once (load_proofread_prompts) and then filled
 in many times. The system prompt is built once per run and is identical for
@@ -40,7 +40,6 @@ def build_system_prompt(prompts: ProofreadPrompts, language: str, lang: str, sty
     return prompts.system_template.substitute(language=language, lang=lang, style_guide=style_guide)
 
 
-def build_user_prompt(prompts: ProofreadPrompts, paragraph: str, hints: list[str] | None = None) -> str:
-    """Fill in the user prompt with one paragraph's text and its style hints (one per line)."""
-    hint_lines = "\n".join(f"- {hint}" for hint in hints) if hints else "None."
-    return prompts.user_template.substitute(paragraph=paragraph, hints=hint_lines)
+def build_user_prompt(prompts: ProofreadPrompts, paragraph: str) -> str:
+    """Fill in the user prompt with one paragraph's text."""
+    return prompts.user_template.substitute(paragraph=paragraph)

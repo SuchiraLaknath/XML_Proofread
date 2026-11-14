@@ -43,7 +43,6 @@ class RunReport:
 
     errors_by_type: Counter[str] = field(default_factory=Counter)
     mistakes_skipped: int = 0  # found by the AI but unsafe to mark
-    mistakes_rejected: int = 0  # found by the AI but against the style guide (style_rules.py)
 
     ai_requests: int = 0  # unique paragraph texts sent
     ai_attempts: int = 0  # including re-asks after unusable answers
@@ -132,10 +131,7 @@ def print_summary(report: RunReport) -> None:
     )
     by_type = ", ".join(f"{name} {count}" for name, count in sorted(report.errors_by_type.items()))
     print(f"Errors marked: {report.errors_marked}" + (f" ({by_type})" if by_type else ""))
-    print(
-        f"Mistakes skipped: {report.mistakes_skipped} unsafe, "
-        f"{report.mistakes_rejected} against the style guide"
-    )
+    print(f"Mistakes skipped as unsafe: {report.mistakes_skipped}")
     print(
         f"AI: {report.ai_requests} requests, {report.ai_attempts} attempts; tokens: "
         f"{report.input_tokens:,} in ({report.cached_input_tokens:,} cached), {report.output_tokens:,} out"

@@ -4,8 +4,7 @@
     2. Read ALL paragraphs first, before anything is changed.
     3. Send each unique, non-empty text to the AI once, in parallel.
        Paragraphs with CDATA are not sent.
-    4. For each paragraph: drop_conflicts() (mistakes that go against the style
-       guide), mark_errors(), then verify_or_undo().
+    4. For each paragraph: mark_errors(), then verify_or_undo().
     5. Save <input-name>.corrected.xml next to the input, and return the report.
 
 One bad paragraph never stops the run: it is left unchanged and counted in
@@ -19,7 +18,6 @@ from .ai_proofreader import Checker, CheckResult
 from .error_marker import mark_errors
 from .report import RunReport
 from .safety_check import verify_or_undo
-from .style_rules import drop_conflicts
 from .xml_reader import Paragraph, find_paragraphs, load_xml, save_xml
 
 logger = logging.getLogger(__name__)
@@ -73,9 +71,7 @@ def process_paragraph(paragraph: Paragraph, results: dict[str, CheckResult], rep
         report.paragraphs_failed += 1
         return
 
-    mistakes, against_style_guide = drop_conflicts(result.value, paragraph.text)
-    report.mistakes_rejected += len(against_style_guide)
-    mark = mark_errors(paragraph, mistakes)
+    mark = mark_errors(paragraph, result.value)
     report.mistakes_skipped += len(mark.skipped)
     if not verify_or_undo(paragraph, mark):
         report.paragraphs_undone += 1

@@ -198,24 +198,6 @@ def test_unsafe_mistakes_are_skipped_and_text_is_unchanged(tmp_path: Path, mista
     assert report.mistakes_skipped == 1
 
 
-def test_mistakes_against_the_style_guide_are_not_marked(tmp_path: Path) -> None:
-    xml = b"<doc><p>In March 2023, all healthcare firms grew teh most.</p></doc>"
-    answers = {
-        "March": [
-            m("March 2023,", "March 2023", "styleguide", "No comma between month and year"),
-            m("healthcare", "health care", "styleguide", "Use two words"),
-            m("teh", "the"),
-        ]
-    }
-    output, report = run(tmp_path, xml, FakeProofreader(answers))
-    assert (
-        output
-        == b'<doc><p>In March 2023, all healthcare firms grew <error type="spelling" correction="the">teh</error> most.</p></doc>'
-    )
-    assert report.mistakes_rejected == 2
-    assert report.mistakes_skipped == 0
-
-
 def test_repeated_text_is_found_in_order(tmp_path: Path) -> None:
     xml = b"<doc><p>teh cat and teh dog</p></doc>"
     output, _ = run(tmp_path, xml, FakeProofreader({"cat": [m("teh", "the"), m("teh", "the")]}))
