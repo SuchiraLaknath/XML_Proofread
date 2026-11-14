@@ -77,6 +77,23 @@ Optional settings in `.env` (see `.env.example`; a setting left empty uses its d
 | `LLM_RATE_LIMIT_RETRIES` | `3` | Waits and retries when the provider reports too many requests |
 | `LLM_RATE_LIMIT_WAIT` | `10` | First wait in seconds (doubles each time, max 120) |
 
+## Run with Docker
+
+No Python or uv needed, only [Docker](https://docs.docker.com/get-docker/):
+
+```bash
+docker build -t xml-proofread .        # build the app image
+docker build --target test .           # run the tests inside Docker (no API key needed)
+
+docker run --rm --env-file .env -v "$PWD:/data" xml-proofread \
+  examples/sample_input.xml --lang en-US --style-guide examples/Style_Guide.docx
+```
+
+- `-v "$PWD:/data"` shares the current folder with the container, so paths work as above and
+  the `.corrected.xml` file is written next to the input on your machine.
+- `--env-file .env` passes the API key and settings. The key is never built into the image.
+- On Linux, add `--user "$(id -u):$(id -g)"` if the output can't be written to the shared folder.
+
 ## How it works
 
 ```text
@@ -130,6 +147,7 @@ uv run ruff format .          # format the code the same way everywhere
 | `utils/` | File reading/writing, `.env` settings, logging |
 | `examples/` | Example input/output, sample input and the style guide |
 | `tests/` | pytest tests |
+| `Dockerfile` | Container image for the app; its `test` stage runs the tests |
 | `docs/` | Architecture, codebase guide and design documentation, with diagrams |
 
 ## Known limitations

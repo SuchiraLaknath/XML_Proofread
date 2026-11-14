@@ -33,7 +33,7 @@ htmlcov/
 
 # Program output (written next to the input file)
 *.corrected.xml
-# ...except the sample output kept for reviewers (a real gpt-4.1 run on examples/sample_input.xml)
+# ...except the sample output kept for reviewers (a real gpt-6.1-terra run on examples/sample_input.xml)
 !examples/sample_input.corrected.xml
 
 # Editors
