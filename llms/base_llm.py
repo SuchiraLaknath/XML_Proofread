@@ -111,9 +111,15 @@ class ChatLLM:
             FatalAIError: every request would fail (bad API key, no access, unknown model).
         """
         messages = [self.make_system_message(system_prompt), HumanMessage(content=user_prompt)]
-        # Send the request, then sort any error into "stop the run" or "this request failed".
+
+        def send_once() -> AIMessage:
+            """Send the request one time (call_with_rate_limit_retry may call this again)."""
+            return self.chat_model.invoke(messages)
+
+        # Send the request (waiting and retrying while rate limited), then sort any
+        # error into "stop the run" or "this request failed".
         try:
-            reply = call_with_rate_limit_retry(lambda: self.chat_model.invoke(messages))
+            reply = call_with_rate_limit_retry(send_once)
         except FATAL_ERRORS as e:
             raise FatalAIError(f"{self.provider} rejected the request (model {self.model}): {e}") from e
         except REQUEST_ERRORS as e:
