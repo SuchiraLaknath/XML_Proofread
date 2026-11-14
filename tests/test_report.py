@@ -42,7 +42,6 @@ def test_summary_shows_the_key_numbers(capsys: pytest.CaptureFixture[str]) -> No
         paragraphs_total=3,
         paragraphs_checked=3,
         mistakes_skipped=1,
-        mistakes_rejected=2,
         peak_memory_mb=6.0,
         peak_process_memory_mb=85.25,
     )
@@ -51,6 +50,6 @@ def test_summary_shows_the_key_numbers(capsys: pytest.CaptureFixture[str]) -> No
     print_summary(report)
     out = capsys.readouterr().out
     assert "Errors marked: 3 (spelling 2, styleguide 1)" in out
-    assert "Mistakes skipped: 1 unsafe, 2 against the style guide" in out
+    assert "Mistakes skipped as unsafe: 1" in out
     assert "ai 1.50s" in out
     assert "Peak memory: 85.2 MB process, 6.0 MB Python objects" in out

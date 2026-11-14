@@ -43,7 +43,6 @@ class RunReport:
 
     errors_by_type: Counter[str] = field(default_factory=Counter)
     mistakes_skipped: int = 0  # found by the AI but unsafe to mark
-    mistakes_rejected: int = 0  # found by the AI but against the style guide (style_rules.py)
 
     ai_requests: int = 0  # unique paragraph texts sent
     ai_attempts: int = 0  # including re-asks after unusable answers
@@ -65,24 +64,37 @@ class RunReport:
     def finish(self) -> None:
         """Stop the total timer and record peak memory."""
         self.total_seconds = time.perf_counter() - self._started_at
+        # Peak memory of Python objects since start().
         if tracemalloc.is_tracing():
             self.peak_memory_mb = tracemalloc.get_traced_memory()[1] / 1_000_000
         if self._tracking_memory:
             tracemalloc.stop()
             self._tracking_memory = False
+        # Peak memory of the whole process, as the operating system sees it.
         self.peak_process_memory_mb = peak_process_memory_mb()
 
     @contextmanager
     def step(self, name: str) -> Iterator[None]:
-        """Time a step: `with report.step("save"): ...`"""
+        """Time a step: `with report.step("save"): ...`
+
+        Args:
+            name: the step's name in the summary, e.g. "read".
+
+        Yields:
+            Nothing; the time is added when the `with` block ends, even after an error.
+        """
         started = time.perf_counter()
         try:
-            yield
-        finally:
+            yield  # the code inside the `with` block runs here
+        finally:  # add the time even if the step failed
             self.step_seconds[name] = self.step_seconds.get(name, 0.0) + time.perf_counter() - started
 
     def add_ai_results(self, results: Iterable[InvokeResult]) -> None:
-        """Add the request, attempt and token counts of the AI results."""
+        """Add the request, attempt and token counts of the AI results.
+
+        Args:
+            results: one result for each request sent.
+        """
         for result in results:
             self.ai_requests += 1
             self.ai_attempts += result.attempts
@@ -97,7 +109,11 @@ class RunReport:
 
 
 def peak_process_memory_mb() -> float | None:
-    """Peak memory of the whole process in MB, or None where it can't be read (Windows)."""
+    """Peak memory of the whole process.
+
+    Returns:
+        The peak in MB, or None where it can't be read (Windows).
+    """
     try:
         import resource  # Unix only
     except ImportError:
@@ -109,7 +125,14 @@ def peak_process_memory_mb() -> float | None:
 
 
 def format_memory(report: RunReport) -> str:
-    """'85.3 MB process, 6.1 MB Python objects' (process part left out where unknown)."""
+    """Describe the peak memory for the summary.
+
+    Args:
+        report: the finished report.
+
+    Returns:
+        Text like "85.3 MB process, 6.1 MB Python objects" (the process part is left out where unknown).
+    """
     python_part = f"{report.peak_memory_mb:.1f} MB Python objects"
     if report.peak_process_memory_mb is None:
         return python_part
@@ -117,7 +140,11 @@ def format_memory(report: RunReport) -> str:
 
 
 def print_summary(report: RunReport) -> None:
-    """Print the summary of a run."""
+    """Print the summary of a run.
+
+    Args:
+        report: the finished report.
+    """
     print(f"Proofread: {report.input_path}")
     print(f"Output:    {report.output_path}")
     print()
@@ -132,10 +159,7 @@ def print_summary(report: RunReport) -> None:
     )
     by_type = ", ".join(f"{name} {count}" for name, count in sorted(report.errors_by_type.items()))
     print(f"Errors marked: {report.errors_marked}" + (f" ({by_type})" if by_type else ""))
-    print(
-        f"Mistakes skipped: {report.mistakes_skipped} unsafe, "
-        f"{report.mistakes_rejected} against the style guide"
-    )
+    print(f"Mistakes skipped as unsafe: {report.mistakes_skipped}")
     print(
         f"AI: {report.ai_requests} requests, {report.ai_attempts} attempts; tokens: "
         f"{report.input_tokens:,} in ({report.cached_input_tokens:,} cached), {report.output_tokens:,} out"

@@ -27,7 +27,18 @@ WRITERS: dict[str, Callable[[Any, Path], None]] = {
 
 
 def read_file(file_path: str | Path, directory: str | Path | None = None) -> Any:
-    """Read a file with the reader that matches its extension."""
+    """Read a file with the reader that matches its extension.
+
+    Args:
+        file_path: the file, e.g. "system_prompt.md".
+        directory: the folder that holds it; None means the path is used as given.
+
+    Returns:
+        The text for .md and .docx files, or an XmlFile for .xml files.
+
+    Raises:
+        ValueError: the extension is not supported.
+    """
     path = join_path(file_path, directory)
     reader = READERS.get(path.suffix.lower())
     if reader is None:
@@ -36,7 +47,16 @@ def read_file(file_path: str | Path, directory: str | Path | None = None) -> Any
 
 
 def write_file(data: Any, file_path: str | Path, directory: str | Path | None = None) -> None:
-    """Write data with the writer that matches the file's extension."""
+    """Write data with the writer that matches the file's extension.
+
+    Args:
+        data: the text (.md) or the XmlFile (.xml) to write.
+        file_path: the file to write.
+        directory: the folder to put it in; None means the path is used as given.
+
+    Raises:
+        ValueError: the extension is not supported.
+    """
     path = join_path(file_path, directory)
     writer = WRITERS.get(path.suffix.lower())
     if writer is None:
@@ -45,7 +65,15 @@ def write_file(data: Any, file_path: str | Path, directory: str | Path | None = 
 
 
 def join_path(file_path: str | Path, directory: str | Path | None) -> Path:
-    """Put file_path inside directory, if a directory is given."""
+    """Put file_path inside directory, if a directory is given.
+
+    Args:
+        file_path: the file.
+        directory: the folder, or None.
+
+    Returns:
+        The combined path.
+    """
     if directory is None:
         return Path(file_path)
     return Path(directory) / file_path

@@ -64,19 +64,31 @@ class InvokeResult(Generic[T]):
         return self.error is None and self.attempts > 0
 
     def add_usage(self, answer: LLMAnswer) -> None:
-        """Add the token counts of one answer."""
+        """Add the token counts of one answer.
+
+        Args:
+            answer: one answer from the model.
+        """
         self.input_tokens += answer.input_tokens
         self.output_tokens += answer.output_tokens
         self.cached_input_tokens += answer.cached_input_tokens
 
 
 def get_max_attempts() -> int:
-    """Tries per prompt: LLM_MAX_ATTEMPTS from the environment or .env, else 3."""
+    """Tries per prompt: LLM_MAX_ATTEMPTS from the environment or .env, else 3.
+
+    Returns:
+        The number of tries (at least 1).
+    """
     return get_int_variable(MAX_ATTEMPTS_ENV, DEFAULT_MAX_ATTEMPTS)
 
 
 def get_workers() -> int:
-    """Requests sent at the same time: LLM_WORKERS from the environment or .env, else 8."""
+    """Requests sent at the same time: LLM_WORKERS from the environment or .env, else 8.
+
+    Returns:
+        The number of requests (at least 1).
+    """
     return get_int_variable(WORKERS_ENV, DEFAULT_WORKERS)
 
 
@@ -89,13 +101,26 @@ def invoke_llm(
 ) -> InvokeResult[T]:
     """Ask the LLM once, and again if the answer can't be parsed.
 
-    max_attempts defaults to get_max_attempts().
+    Args:
+        llm: the client that sends the request.
+        system_prompt: the instructions, the same for every request.
+        user_prompt: the text to send.
+        parse: turns the answer text into a value; it raises ValueError, KeyError or
+            TypeError when the answer is unusable.
+        max_attempts: the most tries; None means get_max_attempts().
+
+    Returns:
+        The parsed value (or the error if every try failed), the number of tries and the tokens used.
+
+    Raises:
+        FatalAIError: every request would fail (bad API key, unknown model).
     """
     if max_attempts is None:
         max_attempts = get_max_attempts()
     result: InvokeResult[T] = InvokeResult()
     for attempt in range(1, max_attempts + 1):
         result.attempts = attempt
+        # Send the request. A failed request has already been retried inside ask(), so give up.
         try:
             answer = llm.ask(system_prompt, user_prompt)
         except AIError as e:
@@ -103,6 +128,7 @@ def invoke_llm(
             logger.warning("LLM request failed: %s", e)
             return result
         result.add_usage(answer)
+        # Read the answer. If it can't be read, ask again (next loop).
         try:
             result.value = parse(answer.text)
         except PARSE_ERRORS as e:
@@ -124,8 +150,19 @@ def invoke_llm_parallel(
 ) -> dict[str, InvokeResult[T]]:
     """Run invoke_llm for every unique user prompt, `workers` at a time.
 
-    workers defaults to get_workers() and max_attempts to get_max_attempts().
-    Returns {user_prompt: InvokeResult} in the order the prompts were given.
+    Args:
+        llm: the client that sends the requests.
+        system_prompt: the instructions, the same for every request.
+        user_prompts: the texts to send; a repeated text is sent only once.
+        parse: turns each answer text into a value (see invoke_llm).
+        workers: requests sent at the same time; None means get_workers().
+        max_attempts: the most tries per prompt; None means get_max_attempts().
+
+    Returns:
+        {user_prompt: InvokeResult}, in the order the prompts were given.
+
+    Raises:
+        FatalAIError: every request would fail; requests not started yet are cancelled.
     """
     # Read the settings once here, not once per prompt in every thread.
     if workers is None:
@@ -134,11 +171,13 @@ def invoke_llm_parallel(
         max_attempts = get_max_attempts()
     unique_prompts = list(dict.fromkeys(user_prompts))  # drops repeats, keeps order
     results: dict[str, InvokeResult[T]] = {}
+    # Start one task per prompt; at most `workers` run at the same time.
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         futures = {
             pool.submit(invoke_llm, llm, system_prompt, prompt, parse, max_attempts): prompt
             for prompt in unique_prompts
         }
+        # Collect each answer as soon as it is ready.
         try:
             for future in as_completed(futures):
                 results[futures[future]] = future.result()
@@ -146,4 +185,4 @@ def invoke_llm_parallel(
             # Every other request would fail the same way, so don't start them.
             pool.shutdown(cancel_futures=True)
             raise
-    return {prompt: results[prompt] for prompt in unique_prompts}
+    return {prompt: results[prompt] for prompt in unique_prompts}  # back in the original order

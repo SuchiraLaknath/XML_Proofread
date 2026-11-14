@@ -19,8 +19,18 @@ def get_prompt(
 ) -> str:
     """Load a text template and fill in its $placeholders from mapped_data.
 
-    Raises KeyError if the template uses a placeholder that mapped_data lacks,
-    so a missing value is never sent to the model silently.
+    Args:
+        prompt_template_path: the template file, e.g. "system_prompt.md".
+        prompt_dir: the folder that holds it; None means the path is used as given.
+        mapped_data: the values for the placeholders; None means the template is returned unfilled.
+
+    Returns:
+        The prompt text.
+
+    Raises:
+        KeyError: the template uses a placeholder that mapped_data lacks, so a
+            missing value is never sent to the model silently.
+        ValueError: the template is not a Markdown (.md) file.
     """
     template = read_file(file_path=prompt_template_path, directory=prompt_dir)
     if not isinstance(template, str):

@@ -27,7 +27,6 @@ Give each mistake exactly one of these types:
 9. Only mark text that really breaks a rule. Never "correct" text that already follows the style guide, and never give a correction that the style guide itself rejects. Before you cite a rule, check that the marked text really breaks it: a comma after a year ("In March 2023, the firm") is not a comma between month and year.
 10. For word pairs that are hyphenated only in some uses (third party, common law, and similar), first decide how the words are used. If they describe a noun that follows them, hyphenate ("a third-party audit", "common-law principles"). If they are the noun themselves, do not ("a third party", "the common law").
 11. Mark grammar only when it is clearly wrong, not when it is a matter of preference (such as "who" or "that" for a group of people).
-12. The user message may list hints: possible style guide issues found by a simple text search. Check each hint and mark it only if it really is a mistake in this paragraph. Also look for mistakes the hints do not mention.
 
 ## Answer format
 

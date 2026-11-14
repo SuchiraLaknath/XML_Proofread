@@ -1,0 +1,22 @@
+# Secrets: the API key is passed at run time (--env-file .env), never built in.
+.env
+.env.*
+!.env.example
+
+# Local environments, caches and tools
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.git/
+.vscode/
+.idea/
+.DS_Store
+
+# Not part of the app
+temp_docs/
+docs/assigment_files/
+CLAUDE.md
+*.corrected.xml

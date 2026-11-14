@@ -58,7 +58,11 @@ class XmlFile:
 
 
 def make_parser() -> etree.XMLParser:
-    """Return an XML parser that is safe and keeps the text as written."""
+    """Return an XML parser that is safe and keeps the text as written.
+
+    Returns:
+        The lxml parser.
+    """
     return etree.XMLParser(
         resolve_entities=False,  # protection against XXE attacks
         no_network=True,  # never download anything while parsing
@@ -68,8 +72,19 @@ def make_parser() -> etree.XMLParser:
 
 
 def read_xml_file(file_path: str | Path) -> XmlFile:
-    """Parse an XML file and remember the bytes around its root element."""
+    """Parse an XML file and remember the bytes around its root element.
+
+    Args:
+        file_path: the XML file.
+
+    Returns:
+        The parsed file, plus the bytes before and after its root element.
+
+    Raises:
+        XmlReadError: the file can't be read or parsed, or is UTF-16/UTF-32.
+    """
     file_path = Path(file_path)
+    # 1. Read the raw bytes (never text, so encoding and line endings stay as they are).
     try:
         raw = file_path.read_bytes()
     except OSError as e:
@@ -79,11 +94,13 @@ def read_xml_file(file_path: str | Path) -> XmlFile:
     if raw.startswith(UTF16_32_BOMS) or b"\x00" in raw[:4]:
         raise XmlReadError(f"{file_path}: UTF-16 and UTF-32 files are not supported")
 
+    # 2. Parse the XML safely.
     try:
         root = etree.fromstring(raw, make_parser())
     except etree.XMLSyntaxError as e:
         raise XmlReadError(f"Error parsing XML file {file_path}: {e}") from e
 
+    # 3. Keep the bytes before and after the root element, which lxml would rewrite.
     head = HEAD_PATTERN.match(raw).group()
     tail = TAIL_PATTERN.search(raw).group()
     xml_file = XmlFile(
@@ -93,6 +110,7 @@ def read_xml_file(file_path: str | Path) -> XmlFile:
         windows_newlines=uses_only_windows_newlines(raw),
     )
 
+    # 4. Warn now if saving the file unchanged would not give the same bytes.
     if xml_to_bytes(xml_file) != raw:
         logger.warning(
             "%s uses markup lxml cannot reproduce (for example &#x2019; or "
@@ -103,12 +121,26 @@ def read_xml_file(file_path: str | Path) -> XmlFile:
 
 
 def uses_only_windows_newlines(raw: bytes) -> bool:
-    """Return True if the file has newlines and every one of them is \\r\\n."""
+    """Tell whether the file has newlines and every one of them is \\r\\n.
+
+    Args:
+        raw: the file's bytes.
+
+    Returns:
+        True for a file with Windows line endings only.
+    """
     return b"\r\n" in raw and raw.count(b"\n") == raw.count(b"\r\n")
 
 
 def xml_to_bytes(xml_file: XmlFile) -> bytes:
-    """Turn an XmlFile back into the bytes of a complete XML file."""
+    """Turn an XmlFile back into the bytes of a complete XML file.
+
+    Args:
+        xml_file: the parsed (and maybe marked) file.
+
+    Returns:
+        The bytes to write.
+    """
     encoding = xml_file.tree.docinfo.encoding
     body = etree.tostring(xml_file.tree.getroot(), encoding=encoding, xml_declaration=False)
     # The XML standard makes every parser turn \r\n into \n, so put them back.
@@ -118,7 +150,15 @@ def xml_to_bytes(xml_file: XmlFile) -> bytes:
 
 
 def write_xml_file(xml_file: XmlFile, file_path: str | Path) -> None:
-    """Save an XmlFile, replacing the file if it exists."""
+    """Save an XmlFile, replacing the file if it exists.
+
+    Args:
+        xml_file: the file to save.
+        file_path: where to save it.
+
+    Raises:
+        XmlWriteError: the file can't be written.
+    """
     file_path = Path(file_path)
     try:
         file_path.write_bytes(xml_to_bytes(xml_file))

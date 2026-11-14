@@ -52,7 +52,11 @@ class Segment:
     end: int
 
     def current_text(self) -> str:
-        """The current value of node.text / node.tail ("" when it is None)."""
+        """The current value of node.text / node.tail.
+
+        Returns:
+            The text, or "" when it is None.
+        """
         return getattr(self.node, self.attr) or ""
 
 
@@ -67,29 +71,70 @@ class Paragraph:
 
 
 def load_xml(path: str | Path) -> XmlFile:
-    """Parse an XML file safely (raises XmlReadError)."""
+    """Parse an XML file safely.
+
+    Args:
+        path: the XML file.
+
+    Returns:
+        The parsed file, plus the bytes around its root element.
+
+    Raises:
+        XmlReadError: the file can't be read or parsed, or is UTF-16/UTF-32.
+    """
     return read_xml_file(path)
 
 
 def save_xml(xml_file: XmlFile, path: str | Path) -> None:
-    """Save the XML, writing every byte we did not change back exactly."""
+    """Save the XML, writing every byte we did not change back exactly.
+
+    Args:
+        xml_file: the (marked) file.
+        path: where to save it.
+
+    Raises:
+        XmlWriteError: the file can't be written.
+    """
     write_xml_file(xml_file, path)
 
 
 def find_paragraphs(xml_file: XmlFile) -> list[Paragraph]:
-    """Return every <p> in document order, nested ones included, with its text."""
+    """Find every <p> in document order, nested ones included, and read its text.
+
+    Args:
+        xml_file: the parsed file.
+
+    Returns:
+        One Paragraph for each <p>.
+    """
     root = xml_file.tree.getroot()
+    # The elements are the tree's own (not copies), so marking a Paragraph changes xml_file.
     return [read_paragraph(element) for element in root.iter() if is_paragraph(element)]
 
 
 def is_paragraph(node: etree._Element) -> bool:
-    """True for a <p> element, in any namespace."""
+    """Tell whether a node is a <p> element, in any namespace.
+
+    Args:
+        node: any node of the tree (comments and processing instructions too).
+
+    Returns:
+        True for a <p> element.
+    """
     return isinstance(node.tag, str) and etree.QName(node).localname == PARAGRAPH_TAG
 
 
 def read_paragraph(element: etree._Element) -> Paragraph:
-    """Read the text of one <p> as a list of segments."""
+    """Read the text of one <p> as a list of segments.
+
+    Args:
+        element: the <p> element.
+
+    Returns:
+        The paragraph with its full text and its segments.
+    """
     segments: list[Segment] = []
+    # The text before the first inline tag, then the text in and after each tag.
     position = add_segment(segments, element, "text", 0)
     for child in element:
         position = read_child(segments, child, position)
@@ -98,7 +143,16 @@ def read_paragraph(element: etree._Element) -> Paragraph:
 
 
 def read_child(segments: list[Segment], child: etree._Element, position: int) -> int:
-    """Add the segments of one child of a paragraph; return the new position."""
+    """Add the segments of one child of a paragraph.
+
+    Args:
+        segments: the list the segments are added to.
+        child: one child of the paragraph (or of an inline tag inside it).
+        position: where the child's text starts in the paragraph's text.
+
+    Returns:
+        The position right after the child's text.
+    """
     # A nested <p> keeps its own text. Comments, processing instructions and
     # entity references have no paragraph text either. Only their tail counts.
     if isinstance(child.tag, str) and not is_paragraph(child):
@@ -109,7 +163,17 @@ def read_child(segments: list[Segment], child: etree._Element, position: int) ->
 
 
 def add_segment(segments: list[Segment], node: etree._Element, attr: str, position: int) -> int:
-    """Add node.text or node.tail as a segment if it holds text; return the new position."""
+    """Add node.text or node.tail as a segment if it holds text.
+
+    Args:
+        segments: the list the segment is added to.
+        node: the element that holds the text.
+        attr: "text" or "tail".
+        position: where this text starts in the paragraph's text.
+
+    Returns:
+        The position right after this text.
+    """
     value = getattr(node, attr)
     if not value:
         return position
@@ -118,6 +182,13 @@ def add_segment(segments: list[Segment], node: etree._Element, attr: str, positi
 
 
 def contains_cdata(element: etree._Element) -> bool:
-    """True when the paragraph holds a <![CDATA[...]]> section."""
+    """Tell whether a paragraph holds a <![CDATA[...]]> section.
+
+    Args:
+        element: the <p> element.
+
+    Returns:
+        True when it contains CDATA.
+    """
     # lxml merges CDATA into .text, so look at the element's own markup instead.
     return CDATA_START in etree.tostring(element, with_tail=False)

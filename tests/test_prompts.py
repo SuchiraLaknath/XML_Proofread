@@ -25,17 +25,6 @@ def test_user_prompt_keeps_paragraph_text_exactly() -> None:
     assert f"<paragraph>\n{paragraph}\n</paragraph>" in user
 
 
-def test_user_prompt_lists_the_hints() -> None:
-    prompts = load_proofread_prompts()
-    user = build_user_prompt(prompts, "text", ['"judgement": use "judgment"', '"HIPPA": use "HIPAA"'])
-    assert '- "judgement": use "judgment"\n- "HIPPA": use "HIPAA"\n</hints>' in user
-
-
-def test_user_prompt_says_none_without_hints() -> None:
-    user = build_user_prompt(load_proofread_prompts(), "text", [])
-    assert "None.\n</hints>" in user
-
-
 def test_system_prompt_limits_the_english_style_guide_to_sensible_rules() -> None:
     system = build_system_prompt(load_proofread_prompts(), "French (Canada)", "fr-CA", "RULES")
     assert "only where it makes sense for French (Canada)" in system

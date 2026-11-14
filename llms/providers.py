@@ -27,8 +27,17 @@ API_KEY_VARIABLES = ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")
 def create_llm(provider: str = DEFAULT_PROVIDER, model: str | None = None) -> OpenAILLM | AnthropicLLM:
     """Return the client for a provider.
 
-    model wins when given; otherwise the provider reads OPENAI_MODEL / ANTHROPIC_MODEL
-    from .env, or uses its built-in default.
+    Args:
+        provider: a name from PROVIDERS, e.g. "openai" or "anthropic".
+        model: the model name; None means OPENAI_MODEL / ANTHROPIC_MODEL from .env,
+            or else the provider's built-in default.
+
+    Returns:
+        The client, ready to send requests.
+
+    Raises:
+        ValueError: the provider name is unknown.
+        FatalAIError: the client could not start, for example the API key is missing.
     """
     if provider not in PROVIDERS:
         raise ValueError(f"Unknown provider {provider!r}. Choose one of: {', '.join(PROVIDERS)}")
