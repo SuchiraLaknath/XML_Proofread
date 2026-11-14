@@ -38,7 +38,14 @@ EXPECTED_ERRORS = (XmlReadError, StyleGuideError, LanguageError, FatalAIError)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Read the command line."""
+    """Read the command line.
+
+    Args:
+        argv: the arguments to read; None means the real command line (sys.argv).
+
+    Returns:
+        The options: input, lang, style_guide, provider, model, workers and verbose.
+    """
     parser = argparse.ArgumentParser(description="Mark mistakes in the <p> elements of an XML file.")
     parser.add_argument("input", type=Path, help="the XML file to proofread")
     parser.add_argument("--lang", required=True, help="BCP-47 language tag, for example en, en-US or fr")
@@ -60,12 +67,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def run(args: argparse.Namespace) -> RunReport:
-    """Check the inputs, build the proofreader and proofread the file."""
+    """Check the inputs, build the proofreader and proofread the file.
+
+    Args:
+        args: the options from parse_args().
+
+    Returns:
+        The report with the numbers for the summary.
+
+    Raises:
+        LanguageError, XmlReadError, StyleGuideError or FatalAIError: the run can't go on.
+    """
     # Check the cheap things first, so mistakes in the command are reported at once.
     locale = parse_language(args.lang)
     if not args.input.is_file():
         raise XmlReadError(f"Input file not found: {args.input}")
 
+    # Start the clock and memory tracking, then do the real work.
     report = RunReport()
     report.start()
     proofreader = build_proofreader(args, locale, report)
@@ -75,23 +93,42 @@ def run(args: argparse.Namespace) -> RunReport:
 
 
 def build_proofreader(args: argparse.Namespace, locale: Locale, report: RunReport) -> Proofreader:
-    """Load the style guide, build the system prompt and create the AI client."""
+    """Load the style guide, build the system prompt and create the AI client.
+
+    Args:
+        args: the options from parse_args() (style guide path, provider and model).
+        locale: the checked --lang value.
+        report: the run's report; the time to load the style guide is added to it.
+
+    Returns:
+        A Proofreader that is ready to check paragraphs.
+    """
+    # The style guide is read once and goes, complete, into the system prompt.
     with report.step("style guide"):
         style_guide = load_style_guide(args.style_guide)
     prompts = load_proofread_prompts()
     system_prompt = build_system_prompt(prompts, locale.name, locale.tag, style_guide)
+    # Fails here (FatalAIError) if the API key is missing, before any paragraph is read.
     llm = create_llm(args.provider, args.model)
     logger.info("Proofreading %s in %s with %s (%s)", args.input, locale.name, llm.provider, llm.model)
     return Proofreader(llm, prompts, system_prompt)
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the program and return the exit code."""
+    """Run the program and return the exit code.
+
+    Args:
+        argv: the arguments to use; None means the real command line.
+
+    Returns:
+        0 on success, 1 when the run stopped with an error.
+    """
     args = parse_args(argv)
     setup_logging(logging.DEBUG if args.verbose else logging.INFO)
     try:
         report = run(args)
     except EXPECTED_ERRORS as error:
+        # Known problems (bad --lang, missing file, bad API key): one clear line, no traceback.
         logger.error("%s", error)
         return 1
     print_summary(report)

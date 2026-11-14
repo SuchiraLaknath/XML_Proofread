@@ -38,9 +38,11 @@ class OpenAILLM(ChatLLM):
     """ChatLLM set up for OpenAI."""
 
     def __init__(self, model: str | None = None, chat_model: BaseChatModel | None = None) -> None:
-        """Create the OpenAI client. model defaults to get_model().
+        """Create the OpenAI client.
 
-        chat_model is only passed by tests (a fake), so they need no network or API key.
+        Args:
+            model: the model name; None means get_model().
+            chat_model: only passed by tests (a fake), so they need no network or API key.
         """
         model = model or get_model()
         if chat_model is None:
@@ -49,24 +51,50 @@ class OpenAILLM(ChatLLM):
 
 
 def get_model() -> str:
-    """Model name: OPENAI_MODEL from the environment or .env, else gpt-6.1-terra."""
+    """Model name: OPENAI_MODEL from the environment or .env, else gpt-6.1-terra.
+
+    Returns:
+        The model name.
+    """
     return get_text_variable(MODEL_ENV, DEFAULT_MODEL)
 
 
 def get_reasoning_effort() -> str:
-    """Reasoning effort: OPENAI_REASONING_EFFORT from the environment or .env, else "low"."""
+    """Reasoning effort: OPENAI_REASONING_EFFORT from the environment or .env, else "low".
+
+    Returns:
+        The effort, e.g. "low".
+    """
     return get_text_variable(REASONING_EFFORT_ENV, DEFAULT_REASONING_EFFORT)
 
 
 def is_reasoning_model(model: str) -> bool:
-    """True for models that think before answering (gpt-5, gpt-6, o1, o3, o4), except chat variants."""
+    """Tell whether a model thinks before answering (gpt-5, gpt-6, o1, o3, o4).
+
+    Args:
+        model: the model name.
+
+    Returns:
+        True for a reasoning model, False for others and for "chat" variants.
+    """
     name = model.lower()
     return name.startswith(REASONING_MODEL_PREFIXES) and "chat" not in name
 
 
 def make_chat_model(model: str) -> ChatOpenAI:
-    """Create the LangChain chat model with the settings described at the top of this file."""
+    """Create the LangChain chat model with the settings described at the top of this file.
+
+    Args:
+        model: the model name.
+
+    Returns:
+        The LangChain chat model.
+
+    Raises:
+        FatalAIError: the client could not start, for example OPENAI_API_KEY is missing.
+    """
     try:
+        # Reasoning models reject temperature, so they get a reasoning effort instead.
         if is_reasoning_model(model):
             return ChatOpenAI(model=model, reasoning_effort=get_reasoning_effort(), model_kwargs=JSON_MODE)
         return ChatOpenAI(model=model, temperature=0, model_kwargs=JSON_MODE)

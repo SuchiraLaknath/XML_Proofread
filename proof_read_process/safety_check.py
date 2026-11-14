@@ -16,16 +16,27 @@ logger = logging.getLogger(__name__)
 
 
 def verify_or_undo(paragraph: Paragraph, mark: MarkResult) -> bool:
-    """Return True if the paragraph text is unchanged; otherwise undo the marks and return False."""
+    """Check that marking did not change the paragraph's text; undo the marks if it did.
+
+    Args:
+        paragraph: the paragraph, as read before marking.
+        mark: the result of mark_errors(), with its undo record.
+
+    Returns:
+        True if the text is unchanged (the marks are kept), False if the marks were undone.
+    """
+    # Read the paragraph again: the text inside <error> tags counts as paragraph text.
     text_now = read_paragraph(paragraph.element).text
     if text_now == paragraph.text:
         return True
 
+    # The text changed, which must never happen: put the paragraph back.
     logger.error(
         "Safety check failed: marking changed the text of a paragraph (line %s). Undoing it.",
         paragraph.element.sourceline,
     )
     mark.undo.undo()
+    # Check that the undo really restored it.
     if read_paragraph(paragraph.element).text != paragraph.text:
         logger.error("Undo could not restore the paragraph on line %s", paragraph.element.sourceline)
     return False

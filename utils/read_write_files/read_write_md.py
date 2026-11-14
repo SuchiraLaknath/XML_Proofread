@@ -16,7 +16,17 @@ class MdWriteError(RuntimeError):
 
 
 def read_md_file(file_path: str | Path) -> str:
-    """Return the full text of a Markdown file."""
+    """Return the full text of a Markdown file.
+
+    Args:
+        file_path: the .md file.
+
+    Returns:
+        The file's text.
+
+    Raises:
+        MdReadError: the file can't be read or is not UTF-8.
+    """
     file_path = Path(file_path)
     try:
         return file_path.read_text(encoding="utf-8")
@@ -25,7 +35,15 @@ def read_md_file(file_path: str | Path) -> str:
 
 
 def write_md_file(text: str, file_path: str | Path) -> None:
-    """Write text to a Markdown file, replacing the file if it exists."""
+    """Write text to a Markdown file, replacing the file if it exists.
+
+    Args:
+        text: the text to write.
+        file_path: the .md file.
+
+    Raises:
+        MdWriteError: the file can't be written.
+    """
     file_path = Path(file_path)
     try:
         # newline="" stops Windows from turning "\n" into "\r\n",

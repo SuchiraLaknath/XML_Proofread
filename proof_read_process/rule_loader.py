@@ -39,10 +39,21 @@ class StyleGuideError(RuntimeError):
 
 
 def load_style_guide(file_path: str | Path) -> str:
-    """Read a .docx style guide and return it as Markdown text."""
+    """Read a .docx style guide and return it as Markdown text.
+
+    Args:
+        file_path: the .docx file.
+
+    Returns:
+        The whole guide as Markdown; its words are never changed.
+
+    Raises:
+        StyleGuideError: the file is not a .docx, can't be read, or has no text.
+    """
     file_path = Path(file_path)
     if file_path.suffix.lower() != ".docx":
         raise StyleGuideError(f"The style guide must be a .docx file: {file_path}")
+    # Read every paragraph with its Word style, then turn the styles into Markdown.
     try:
         blocks = read_docx_blocks(file_path)
     except DocxReadError as e:
@@ -56,10 +67,18 @@ def load_style_guide(file_path: str | Path) -> str:
 
 
 def block_to_markdown(block: DocxBlock) -> str:
-    """Turn one paragraph into a Markdown line, based on its Word style."""
+    """Turn one paragraph into a Markdown line, based on its Word style.
+
+    Args:
+        block: one paragraph or table row, with its Word style and bold flag.
+
+    Returns:
+        The Markdown line, or "" for an empty paragraph.
+    """
     text = block.text.strip()
     if not text:
         return ""
+    # Check the styles from the most to the least specific.
     level = heading_level(block.style)
     if level is not None:
         return "\n" + "#" * (level + 1) + " " + text  # blank line before each heading
@@ -74,7 +93,14 @@ def block_to_markdown(block: DocxBlock) -> str:
 
 
 def heading_level(style: str) -> int | None:
-    """Return 0 for a title, 1, 2, ... for headings, or None for other styles."""
+    """Find the heading level of a Word style.
+
+    Args:
+        style: the Word style name, e.g. "Heading 2".
+
+    Returns:
+        0 for a title, 1, 2, ... for headings, or None for other styles.
+    """
     if style.strip().lower() == "title":
         return 0
     match = HEADING_LEVEL.search(style)
@@ -82,10 +108,18 @@ def heading_level(style: str) -> int | None:
 
 
 def tidy_whitespace(text: str) -> str:
-    """Strip spaces at line ends and allow at most one blank line in a row."""
+    """Strip spaces at line ends and allow at most one blank line in a row.
+
+    Args:
+        text: the Markdown text.
+
+    Returns:
+        The tidied text.
+    """
     lines: list[str] = []
     for line in text.splitlines():
         line = line.strip()
+        # Keep every line with text, and a blank line only if the line before it had text.
         if line or (lines and lines[-1]):
             lines.append(line)
     return "\n".join(lines).strip()

@@ -37,14 +37,35 @@ class DocxBlock:
 
 
 def read_docx_file(file_path: str | Path) -> str:
-    """Return the text of a .docx file, one paragraph or table row per line."""
+    """Return the text of a .docx file, one paragraph or table row per line.
+
+    Args:
+        file_path: the .docx file.
+
+    Returns:
+        The document's text.
+
+    Raises:
+        DocxReadError: the file can't be opened or read.
+    """
     return "\n".join(block.text for block in read_docx_blocks(file_path))
 
 
 def read_docx_blocks(file_path: str | Path) -> list[DocxBlock]:
-    """Return every paragraph and table row of a .docx file, with its style name."""
+    """Return every paragraph and table row of a .docx file, with its style name.
+
+    Args:
+        file_path: the .docx file.
+
+    Returns:
+        The blocks in document order.
+
+    Raises:
+        DocxReadError: the file can't be opened or read.
+    """
     document = open_docx(Path(file_path))
     blocks: list[DocxBlock] = []
+    # Paragraphs and tables, in the order they appear in the document.
     for item in document.iter_inner_content():
         if isinstance(item, Table):
             blocks.extend(DocxBlock(line, TABLE_ROW_STYLE) for line in table_to_lines(item))
@@ -54,7 +75,17 @@ def read_docx_blocks(file_path: str | Path) -> list[DocxBlock]:
 
 
 def open_docx(file_path: Path) -> Document:
-    """Open a .docx file, turning library errors into DocxReadError."""
+    """Open a .docx file, turning library errors into DocxReadError.
+
+    Args:
+        file_path: the .docx file.
+
+    Returns:
+        The opened document.
+
+    Raises:
+        DocxReadError: the file is missing or is not a valid .docx.
+    """
     try:
         return docx.Document(str(file_path))
     except (OSError, OpcError, BadZipFile) as e:
@@ -62,19 +93,41 @@ def open_docx(file_path: Path) -> Document:
 
 
 def style_name(paragraph: Paragraph) -> str:
-    """Return the paragraph's style name, or "" if it has none."""
+    """Return the paragraph's style name.
+
+    Args:
+        paragraph: a Word paragraph.
+
+    Returns:
+        The style name, e.g. "Heading 1", or "" if it has none.
+    """
     style = paragraph.style
     return style.name if style is not None and style.name else ""
 
 
 def is_bold(paragraph: Paragraph) -> bool:
-    """True when every piece of visible text in the paragraph is bold."""
+    """Tell whether every piece of visible text in the paragraph is bold.
+
+    Args:
+        paragraph: a Word paragraph.
+
+    Returns:
+        True when all of its text is bold.
+    """
     runs = [run for run in paragraph.runs if run.text.strip()]
     return bool(runs) and all(run_is_bold(run, paragraph) for run in runs)
 
 
 def run_is_bold(run: Run, paragraph: Paragraph) -> bool:
-    """True when a run (a piece of text with one format) is bold."""
+    """Tell whether a run (a piece of text with one format) is bold.
+
+    Args:
+        run: the run.
+        paragraph: the paragraph it belongs to; its style is checked when the run doesn't say.
+
+    Returns:
+        True when the run is bold.
+    """
     if run.bold is not None:
         return run.bold
     # Not set on the run itself, so it comes from the run's or the paragraph's style.
@@ -85,5 +138,12 @@ def run_is_bold(run: Run, paragraph: Paragraph) -> bool:
 
 
 def table_to_lines(table: Table) -> list[str]:
-    """Turn each table row into one line of text."""
+    """Turn each table row into one line of text.
+
+    Args:
+        table: a Word table.
+
+    Returns:
+        One line per row, with the cells joined by " | ".
+    """
     return [" | ".join(cell.text for cell in row.cells) for row in table.rows]

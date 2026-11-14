@@ -41,20 +41,35 @@ WAIT_ENV = "LLM_RATE_LIMIT_WAIT"
 
 
 def get_rate_limit_retries() -> int:
-    """How many times to wait and try again: LLM_RATE_LIMIT_RETRIES, else 3."""
+    """How many times to wait and try again: LLM_RATE_LIMIT_RETRIES, else 3.
+
+    Returns:
+        The number of retries (0 means never retry).
+    """
     return get_int_variable(RETRIES_ENV, DEFAULT_RETRIES, minimum=0)
 
 
 def get_rate_limit_wait() -> int:
-    """First wait in seconds: LLM_RATE_LIMIT_WAIT, else 10."""
+    """First wait in seconds: LLM_RATE_LIMIT_WAIT, else 10.
+
+    Returns:
+        The first wait in seconds (at least 1).
+    """
     return get_int_variable(WAIT_ENV, DEFAULT_WAIT_SECONDS, minimum=1)
 
 
 def call_with_rate_limit_retry(request: Callable[[], T]) -> T:
     """Run request(). If it is rate limited, wait and run it again.
 
-    After the last retry the rate limit error is raised to the caller.
-    Any other error is raised straight away, without waiting.
+    Args:
+        request: a function that sends one request and returns its reply.
+
+    Returns:
+        What request() returned.
+
+    Raises:
+        ModelRateLimitError (or the SDK's RateLimitError): still rate limited after the
+            last retry. Any other error is raised straight away, without waiting.
     """
     max_retries = get_rate_limit_retries()
     first_wait = get_rate_limit_wait()
@@ -63,7 +78,7 @@ def call_with_rate_limit_retry(request: Callable[[], T]) -> T:
         try:
             return request()
         except RATE_LIMIT_ERRORS as error:
-            if retry >= max_retries:
+            if retry >= max_retries:  # out of retries: let the caller handle it
                 raise
             retry += 1
             wait = seconds_to_wait(error, first_wait, retry)
@@ -77,7 +92,17 @@ def call_with_rate_limit_retry(request: Callable[[], T]) -> T:
 
 
 def seconds_to_wait(error: Exception, first_wait: int, retry: int) -> float:
-    """How long to wait before retry number `retry` (1, 2, 3, ...)."""
+    """How long to wait before retry number `retry`.
+
+    Args:
+        error: the rate limit error; it may carry the provider's Retry-After header.
+        first_wait: the first wait in seconds, used when the provider gives none.
+        retry: which retry this is: 1, 2, 3, ...
+
+    Returns:
+        The wait in seconds, at most MAX_WAIT_SECONDS.
+    """
+    # The provider knows best how long to wait, so use its number when it sends one.
     retry_after = read_retry_after(error)
     if retry_after is not None:
         return min(retry_after, MAX_WAIT_SECONDS)
@@ -86,7 +111,15 @@ def seconds_to_wait(error: Exception, first_wait: int, retry: int) -> float:
 
 
 def read_retry_after(error: Exception) -> float | None:
-    """Return the Retry-After header in seconds, or None if the provider sent none."""
+    """Read the Retry-After header of a rate limit error.
+
+    Args:
+        error: the rate limit error.
+
+    Returns:
+        The wait in seconds, or None if the provider sent none (or sent a date).
+    """
+    # The header lives on the HTTP response, which LangChain keeps on the error.
     response = getattr(error, "response", None)
     if response is None:
         return None

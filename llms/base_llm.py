@@ -81,11 +81,12 @@ class ChatLLM:
     ) -> None:
         """Wrap a LangChain chat model.
 
-        provider: name shown in messages, e.g. "openai".
-        model: the model name, e.g. "gpt-4.1".
-        chat_model: the LangChain chat model that sends the request.
-        cache_system_prompt: mark the system prompt for prompt caching (Anthropic needs this;
-            OpenAI caches long prompts by itself).
+        Args:
+            provider: the name shown in messages, e.g. "openai".
+            model: the model name, e.g. "gpt-6.1-terra".
+            chat_model: the LangChain chat model that sends the request.
+            cache_system_prompt: mark the system prompt for prompt caching (Anthropic needs this;
+                OpenAI caches long prompts by itself).
         """
         self.provider = provider
         self.model = model
@@ -96,9 +97,21 @@ class ChatLLM:
         """Send the two prompts and return the model's answer.
 
         When the provider is rate limiting, this waits and tries again
-        (see rate_limit.py) before giving up with AIError.
+        (see rate_limit.py) before giving up.
+
+        Args:
+            system_prompt: the instructions, the same for every request.
+            user_prompt: the text to send.
+
+        Returns:
+            The answer text and its token counts.
+
+        Raises:
+            AIError: this request failed; the caller leaves that paragraph unchanged.
+            FatalAIError: every request would fail (bad API key, no access, unknown model).
         """
         messages = [self.make_system_message(system_prompt), HumanMessage(content=user_prompt)]
+        # Send the request, then sort any error into "stop the run" or "this request failed".
         try:
             reply = call_with_rate_limit_retry(lambda: self.chat_model.invoke(messages))
         except FATAL_ERRORS as e:
@@ -111,7 +124,14 @@ class ChatLLM:
         return to_answer(reply)
 
     def make_system_message(self, text: str) -> SystemMessage:
-        """Build the system message, marked for prompt caching if asked."""
+        """Build the system message, marked for prompt caching if asked.
+
+        Args:
+            text: the system prompt.
+
+        Returns:
+            The LangChain system message.
+        """
         if not self.cache_system_prompt:
             return SystemMessage(content=text)
         # The system prompt is the same for every paragraph, so after the
@@ -121,7 +141,17 @@ class ChatLLM:
 
 
 def to_answer(reply: AIMessage) -> LLMAnswer:
-    """Take the text and token counts out of a LangChain reply."""
+    """Take the text and token counts out of a LangChain reply.
+
+    Args:
+        reply: the model's reply.
+
+    Returns:
+        The answer text and its token counts.
+
+    Raises:
+        AIError: the model refused, the answer was cut off, or it holds no text.
+    """
     metadata = reply.response_metadata
     # Anthropic calls it stop_reason, OpenAI calls it finish_reason.
     stop_reason = metadata.get("stop_reason") or metadata.get("finish_reason")

@@ -39,9 +39,11 @@ class AnthropicLLM(ChatLLM):
     """ChatLLM set up for Anthropic."""
 
     def __init__(self, model: str | None = None, chat_model: BaseChatModel | None = None) -> None:
-        """Create the Anthropic client, with system prompt caching on. model defaults to get_model().
+        """Create the Anthropic client, with system prompt caching on.
 
-        chat_model is only passed by tests (a fake), so they need no network or API key.
+        Args:
+            model: the model name; None means get_model().
+            chat_model: only passed by tests (a fake), so they need no network or API key.
         """
         model = model or get_model()
         if chat_model is None:
@@ -50,17 +52,33 @@ class AnthropicLLM(ChatLLM):
 
 
 def get_model() -> str:
-    """Model name: ANTHROPIC_MODEL from the environment or .env, else claude-opus-5-5."""
+    """Model name: ANTHROPIC_MODEL from the environment or .env, else claude-opus-5-5.
+
+    Returns:
+        The model name.
+    """
     return get_text_variable(MODEL_ENV, DEFAULT_MODEL)
 
 
 def get_max_tokens() -> int:
-    """Answer size limit: ANTHROPIC_MAX_TOKENS from the environment or .env, else 16000."""
+    """Answer size limit: ANTHROPIC_MAX_TOKENS from the environment or .env, else 16000.
+
+    Returns:
+        The most tokens the model may use per request (thinking plus answer).
+    """
     return get_int_variable(MAX_TOKENS_ENV, DEFAULT_MAX_TOKENS)
 
 
 def make_chat_model(model: str, max_tokens: int) -> ChatAnthropic:
-    """Create the LangChain chat model with the settings described at the top of this file."""
+    """Create the LangChain chat model with the settings described at the top of this file.
+
+    Args:
+        model: the model name.
+        max_tokens: the most tokens the model may use per request.
+
+    Returns:
+        The LangChain chat model.
+    """
     return ChatAnthropic(
         model=model,
         max_tokens=max_tokens,
