@@ -4,6 +4,10 @@
     guide_text = read_file("examples/Style_Guide.docx")
 
 The extension check ignores case, so "NOTES.MD" works too.
+
+A .docx file is read as plain text, one paragraph per line, without its
+headings. For the style guide use proof_read_process.rule_loader.load_style_guide(),
+which keeps the headings so the AI can name the rule it applies.
 """
 
 from collections.abc import Callable
@@ -38,6 +42,7 @@ def read_file(file_path: str | Path, directory: str | Path | None = None) -> Any
 
     Raises:
         ValueError: the extension is not supported.
+        MdReadError, DocxReadError or XmlReadError: the file is missing or can't be read.
     """
     path = join_path(file_path, directory)
     reader = READERS.get(path.suffix.lower())
@@ -56,6 +61,7 @@ def write_file(data: Any, file_path: str | Path, directory: str | Path | None = 
 
     Raises:
         ValueError: the extension is not supported.
+        MdWriteError or XmlWriteError: the file can't be written.
     """
     path = join_path(file_path, directory)
     writer = WRITERS.get(path.suffix.lower())
