@@ -108,6 +108,7 @@ def find_paragraphs(xml_file: XmlFile) -> list[Paragraph]:
         One Paragraph for each <p>.
     """
     root = xml_file.tree.getroot()
+    # The elements are the tree's own (not copies), so marking a Paragraph changes xml_file.
     return [read_paragraph(element) for element in root.iter() if is_paragraph(element)]
 
 

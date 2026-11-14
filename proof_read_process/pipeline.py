@@ -46,6 +46,7 @@ def proofread_file(
     report.input_path = input_path
 
     # 1. Read every paragraph first, so all texts are taken from the untouched file.
+    #    Each Paragraph points to a real <p> element inside xml_file.tree (no copy is made).
     with report.step("read"):
         xml_file = load_xml(input_path)
         paragraphs = find_paragraphs(xml_file)
@@ -57,11 +58,13 @@ def proofread_file(
     report.add_ai_results(results.values())
 
     # 3. Mark the mistakes in each paragraph, one paragraph at a time.
+    #    The <error> tags are inserted straight into xml_file.tree, through those <p> elements.
     with report.step("mark"):
         for paragraph in paragraphs:
             process_paragraph(paragraph, results, report)
 
-    # 4. Save the marked copy next to the input.
+    # 4. Save the marked copy next to the input. xml_file.tree already holds every change
+    #    from step 3, so saving it writes the tagged paragraphs; nothing else is passed in.
     report.output_path = corrected_path(input_path)
     with report.step("save"):
         save_xml(xml_file, report.output_path)

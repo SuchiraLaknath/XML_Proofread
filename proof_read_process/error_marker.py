@@ -212,6 +212,8 @@ def wrap_segment(segment: Segment, placements: list[Placement], tag: str, undo: 
         tag: the <error> tag name (see error_tag_for).
         undo: every change is written down here, so it can be undone.
     """
+    # node and parent are elements of the document tree itself, so these edits change
+    # the XML that will be saved (and UndoRecord can change them back the same way).
     node, attr = segment.node, segment.attr
     value = segment.current_text()
     # Write down the old text first, so the change can be undone.
